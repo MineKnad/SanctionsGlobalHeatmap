@@ -64,10 +64,11 @@ def create_app():
     # Dash Layout
     ###################################################################
 
-    app: Dash = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+    app: Dash = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP, dmc.styles.ALL])
 
-    app.layout = html.Div([
-        dbc.Container([
+    app.layout = dmc.MantineProvider(
+        html.Div([
+            dbc.Container([
             # html.H1("OpenSanctions Dashboard"),
             html.H4(""),
             dcc.Tabs(value='Sanctions by Country', children=[
@@ -77,8 +78,8 @@ def create_app():
                     dbc.Row([
                         dbc.Col(dmc.Select(id='sbc-filter-mode', data=["Sanctions towards", "Sanctions from"], value="Sanctions towards"), width=6, lg=2),
                         dbc.Col(dmc.Select(id='sbc-filter-country', data=target_countries, placeholder="Country", searchable=True), width=6, lg=3),
-                        dbc.Col(dmc.DatePicker(id="sbc-filter-start-date", minDate=date(201, 5, 21)), width=6, lg=2),
-                        dbc.Col(dmc.DatePicker(id="sbc-filter-end-date", minDate=date(201, 5, 21)), width=6, lg=2),
+                        dbc.Col(dmc.DatePicker(id="sbc-filter-start-date", minDate=date(2020, 5, 21)), width=6, lg=2),
+                        dbc.Col(dmc.DatePicker(id="sbc-filter-end-date", minDate=date(2020, 5, 21)), width=6, lg=2),
                         dbc.Col(dbc.Button(id="sbc-btn-export", children="Excel Export", color="primary", n_clicks=0), width=12, lg=2)
                     ]),
                     html.Br(),
@@ -201,6 +202,7 @@ def create_app():
         dcc.Download(id="entities-download"),
         dcc.Download(id="network-download"),
     ])
+    )
 
     return app
 
