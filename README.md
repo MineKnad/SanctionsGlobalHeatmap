@@ -52,13 +52,13 @@ from [People Data Labs](https://www.peopledatalabs.com/) is joined in order to i
   * Insert the OpenSanctions entries/ datasets and companies in the database (extract schemas & industries)
     ```bash
     # Insert the OpenSanctions entries & datasets in the database and extract the schemas
-    python3 ./util/ParseOpenSanctionsData.py download_datasets ./data/index.json
-    python3 ./util/ParseOpenSanctionsData.py write_entities ./data/entities.ftm.json
-    python3 ./util/ParseOpenSanctionsData.py extract_schemas ./data/schemas.txt
+    python ./util/ParseOpenSanctionsData.py download_datasets ./data/index.json
+    python ./util/ParseOpenSanctionsData.py write_entities ./data/entities.ftm.json
+    python ./util/ParseOpenSanctionsData.py extract_schemas ./data/schemas.txt
   
     # Insert the CompanyData in the database and extract the industries
-    python3 ./util/ParserCompanySetData.py parser_company_set_data ./data/companies_sorted.csv
-    python3 ./util/ParserCompanySetData.py extract_industries ./data/industries.txt
+    python ./util/ParserCompanySetData.py parser_company_set_data ./data/companies_sorted.csv
+    python ./util/ParserCompanySetData.py extract_industries ./data/industries.txt
     ```
   * Insert the countries and perform the SQL transformations to enable the `Country-Sanctions->country` analysis.
     Furthermore, it adds indexes to increase the dashboards performance. 
