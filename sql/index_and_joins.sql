@@ -18,7 +18,7 @@ SELECT * FROM (
         FROM entities
     ) e
     JOIN (SELECT * FROM datasets WHERE type <> 'external') d USING (name)
-) f WHERE source_country IS NOT NULL AND target_country IS NOT NULL
+) f WHERE source_country IS NOT NULL AND target_country IS NOT NULL;
 
 /* create index on newly created tables */
 CREATE INDEX ON countries(alpha_2);

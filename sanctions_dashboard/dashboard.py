@@ -77,8 +77,8 @@ def create_app():
                     dbc.Row([
                         dbc.Col(dmc.Select(id='sbc-filter-mode', data=["Sanctions towards", "Sanctions from"], value="Sanctions towards"), width=6, lg=2),
                         dbc.Col(dmc.Select(id='sbc-filter-country', data=target_countries, placeholder="Country", searchable=True), width=6, lg=3),
-                        dbc.Col(dmc.DatePicker(id="sbc-filter-start-date", placeholder="Start Date", minDate=date(201, 5, 21)), width=6, lg=2),
-                        dbc.Col(dmc.DatePicker(id="sbc-filter-end-date", placeholder="End Date", minDate=date(201, 5, 21)), width=6, lg=2),
+                        dbc.Col(dmc.DatePicker(id="sbc-filter-start-date", minDate=date(201, 5, 21)), width=6, lg=2),
+                        dbc.Col(dmc.DatePicker(id="sbc-filter-end-date", minDate=date(201, 5, 21)), width=6, lg=2),
                         dbc.Col(dbc.Button(id="sbc-btn-export", children="Excel Export", color="primary", n_clicks=0), width=12, lg=2)
                     ]),
                     html.Br(),
@@ -123,7 +123,7 @@ def create_app():
                 dcc.Tab(label='Entities', value='entities', children=[
                     html.H4("Search"),
                     dbc.Row([
-                        dbc.Col(dmc.TextInput(id="entities-filter-query", type="text", placeholder="Query", debounce=True), width=12, lg=4),
+                        dbc.Col(dmc.TextInput(id="entities-filter-query", placeholder="Query", debounce=True), width=12, lg=4),
                         dbc.Col(dmc.Select(id='entities-filter-country', data=[""] + target_countries, placeholder="Country", searchable=True), width=6, lg=3),
                         dbc.Col(dmc.Select(id='entities-filter-schema', data=schemas, placeholder="Schema", searchable=True), width=6, lg=2),
                         dbc.Col(dbc.Button(id='entities-btn-search', children="Search", color="light", className="me-1", n_clicks=0), width=6, lg=1),
@@ -144,8 +144,8 @@ def create_app():
                     dbc.Row([
                         dbc.Col(dmc.Select(id='network-filter-schema', data=schemas, placeholder="Schema", searchable=True), width=6, lg=2),
                         dbc.Col(dmc.Select(id='network-filter-industry', data=industries, placeholder="Industries", searchable=True), width=6, lg=3),
-                        dbc.Col(dmc.DatePicker(id="network-filter-start-date", placeholder="Start Date", minDate=date(201, 5, 21)), width=6, lg=2),
-                        dbc.Col(dmc.DatePicker(id="network-filter-end-date", placeholder="End Date", minDate=date(201, 5, 21)), width=6, lg=2),
+                        dbc.Col(dmc.DatePicker(id="network-filter-start-date", minDate=date(2020, 5, 21)), width=6, lg=2),
+                        dbc.Col(dmc.DatePicker(id="network-filter-end-date", minDate=date(2020, 5, 21)), width=6, lg=2),
                         dbc.Col(dbc.Button(id="network-btn-export", children="Excel Export", color="primary", className="me-1", n_clicks=0), width=4, lg=2),
                     ]),
                     html.Br(),
