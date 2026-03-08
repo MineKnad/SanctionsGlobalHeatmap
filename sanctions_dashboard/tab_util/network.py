@@ -6,36 +6,44 @@ import pandas as pd
 from sqlalchemy import Engine
 
 
-def build_edge_list(schema: str, industry: str, start_date: str, end_date: str, countries: str, engine: Engine
+def build_edge_list(schema: str, industry: str, start_date: str, end_date: str, countries: list[str] | None, engine: Engine
                     ) -> pd.DataFrame:
-    conditions: list[str] = ["source_country != target_country"]
+    conditions: list[str] = ["ec.source_country <> ec.target_country"]
+    params: dict = {}
 
     if schema is not None and schema != "":
-        conditions.append('schema = %(s)s')
+        conditions.append('ec.schema = %(s)s')
+        params["s"] = schema
 
     if industry is not None and industry != "":
-        conditions.append('industry = %(i)s')
+        conditions.append('ec.industry = %(i)s')
+        params["i"] = industry
 
     if start_date is not None and start_date != "":
-        conditions.append('first_seen > %(sd)s')
+        conditions.append('ec.first_seen >= %(sd)s')
+        params["sd"] = start_date
 
     if end_date is not None and end_date != "":
-        conditions.append('first_seen < %(ed)s')
+        conditions.append('ec.first_seen <= %(ed)s')
+        params["ed"] = end_date
 
-    if countries is not None and countries != "":
-        countries = ", ".join(map(lambda x: f"'{x}'", countries))
-        conditions.append(f'source_country IN ({countries}) AND target_country IN ({countries})')
+    if countries is not None and len(countries) > 0:
+        conditions.append('ec.source_country = ANY(%(countries)s) AND ec.target_country = ANY(%(countries)s)')
+        params["countries"] = countries
 
     condition: str = ' AND '.join(conditions)
 
-    sql: str = f"""SELECT s.description AS source, t.description AS target, count(DISTINCT id) AS weight 
-    FROM entities_countries 
-    JOIN countries s ON (s.alpha_2 = source_country) 
-    JOIN countries t ON (t.alpha_2 = target_country)  
+    sql: str = f"""SELECT
+        COALESCE(NULLIF(s.name, ''), NULLIF(s.description, ''), ec.source_country) AS source,
+        COALESCE(NULLIF(t.name, ''), NULLIF(t.description, ''), ec.target_country) AS target,
+        count(DISTINCT ec.id) AS weight
+    FROM entities_countries ec
+    LEFT JOIN countries s ON s.alpha_2 = ec.source_country
+    LEFT JOIN countries t ON t.alpha_2 = ec.target_country
     WHERE {condition}
     GROUP BY 1, 2"""
 
-    return pd.read_sql(sql, params={"s": schema, "i": industry, "sd": start_date, "ed": end_date}, con=engine)
+    return pd.read_sql(sql, params=params, con=engine)
 
 
 def build_graph(df) -> nx.DiGraph:
@@ -45,7 +53,7 @@ def build_graph(df) -> nx.DiGraph:
     return graph
 
 
-def build_output(schema: str, industry: str, start_date: str, end_date: str, countries: str, engine: Engine
+def build_output(schema: str, industry: str, start_date: str, end_date: str, countries: list[str] | None, engine: Engine
                  ) -> (go.Figure, pd.DataFrame):
     df = build_edge_list(schema, industry, start_date, end_date, countries, engine)
     graph = build_graph(df)

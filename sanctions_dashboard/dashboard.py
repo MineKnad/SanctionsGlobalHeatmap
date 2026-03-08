@@ -3,29 +3,26 @@ import dash_mantine_components as dmc
 from dash import Dash, html, dcc, callback, Output, Input, dash_table, State
 from sqlalchemy import create_engine, Engine
 from datetime import date
+from pathlib import Path
 
 from tab_util.network import build_output, build_edge_list
 from tab_util.sanctions_by_country import generate_country_data, create_graphs
 from tab_util.entity_search import search_entity
-from tab_util.util import df_to_excel, create_country_list
+from tab_util.util import df_to_excel, create_country_list, create_schema_list, create_industry_list
 
 ###################################################################
 # Definitions
 ###################################################################
 
 engine: Engine = create_engine("postgresql+psycopg2://sanctions:sanctions@localhost:5432/sanctions")
+data_dir: Path = Path(__file__).resolve().parents[1] / "data"
 
 target_countries = create_country_list(engine, "target_country")
 source_countries = create_country_list(engine, "source_country")
 all_countries = create_country_list(engine)
 
-with open("../data/schemas.txt", "r") as f:
-    schemas = [{"label": v, "value": v} for v in f.read().split("\n")]
-
-
-with open("../data/industries.txt", "r") as f:
-    industries = [{"value": v, "label": " ".join([x.capitalize() for x in v.replace("/", " / ").split(" ")])} for v in
-                  f.read().split("\n")]
+schemas = create_schema_list(engine, data_dir / "schemas.txt")
+industries = create_industry_list(engine, data_dir / "industries.txt")
 
 entity_search_header: list = [
     {'name': i, 'id': i, 'deletable': True} for i in
@@ -210,7 +207,7 @@ def create_app():
 ###################################################################
 # TAB: Sanctions by Country
 ###################################################################
-@callback(Output("sbc-filter-country", "options"), Input("sbc-filter-mode", "value"))
+@callback(Output("sbc-filter-country", "data"), Input("sbc-filter-mode", "value"))
 def update_sbc_filter_country(value: str):
     return target_countries if value == "Sanctions towards" else source_countries
 
@@ -289,7 +286,7 @@ def entities_download(schema: str, query: str, country: str, _):
      State("network-filter-countries", "value"),
      Input("network-btn-load", "n_clicks")],
     prevent_initial_call=True)
-def update_network_graph_table(schema: str, industry: str, start_date: str, end_date: str, countries: str, _):
+def update_network_graph_table(schema: str, industry: str, start_date: str, end_date: str, countries: list[str] | None, _):
     return build_output(schema, industry, start_date, end_date, countries, engine)
 
 
@@ -302,7 +299,7 @@ def update_network_graph_table(schema: str, industry: str, start_date: str, end_
      State("network-filter-countries", "value"),
      Input("network-btn-export", "n_clicks")],
     prevent_initial_call=True)
-def download_network(schema: str, industry: str, start_date: str, end_date: str, countries: str, _):
+def download_network(schema: str, industry: str, start_date: str, end_date: str, countries: list[str] | None, _):
     df = build_edge_list(schema, industry, start_date, end_date, countries, engine)
     to_xlsx = df_to_excel(df, "Network")
     return dcc.send_bytes(to_xlsx, f"network.xlsx")

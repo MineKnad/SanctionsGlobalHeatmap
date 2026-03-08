@@ -6,30 +6,38 @@ import plotly.graph_objs as go
 
 def generate_country_data(mode: str, country: str, schema: str, industry: str, start_date: str, end_date: str,
                           engine: Engine) -> pd.DataFrame:
-
     col: str = "target_country" if "Sanctions towards" == mode else "source_country"
-    conditions: list[str] = ["source_country != target_country", f"{col} = %(c)s"]
+    conditions: list[str] = ["ec.source_country <> ec.target_country", f"ec.{col} = %(c)s"]
+    params: dict = {"c": country}
 
     if schema is not None and schema.strip() != "":
-        conditions.append("schema = %(s)s")
+        conditions.append("ec.schema = %(s)s")
+        params["s"] = schema
 
     if industry is not None and industry.strip() != "":
-        conditions.append("industry = %(i)s")
+        conditions.append("ec.industry = %(i)s")
+        params["i"] = industry
 
     if start_date is not None and start_date.strip() != "":
-        conditions.append("first_seen > %(sd)s")
+        conditions.append("ec.first_seen >= %(sd)s")
+        params["sd"] = start_date
 
     if end_date is not None and end_date.strip() != "":
-        conditions.append("first_seen < %(ed)s")
+        conditions.append("ec.first_seen <= %(ed)s")
+        params["ed"] = end_date
 
     sql: str = f"""SELECT 
-        id, caption, first_seen, schema, industry, t.description AS target, s.description AS source
-    FROM entities_countries 
-    JOIN countries t ON (t.alpha_2 = target_country) 
-    JOIN countries s ON (s.alpha_2 = source_country)
+        ec.id,
+        ec.caption,
+        ec.first_seen,
+        ec.schema,
+        ec.industry,
+        COALESCE(NULLIF(t.name, ''), NULLIF(t.description, ''), ec.target_country) AS target,
+        COALESCE(NULLIF(s.name, ''), NULLIF(s.description, ''), ec.source_country) AS source
+    FROM entities_countries ec
+    LEFT JOIN countries t ON t.alpha_2 = ec.target_country
+    LEFT JOIN countries s ON s.alpha_2 = ec.source_country
     WHERE { ' AND '.join(conditions) }"""
-
-    params: dict = {"c": country, "s": schema, "i": industry, "sd": start_date, "ed": end_date}
 
     return pd.read_sql(sql, params=params, con=engine)
 

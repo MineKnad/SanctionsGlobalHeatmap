@@ -7,6 +7,11 @@ using the [OpenSanctions Default](https://www.opensanctions.org/datasets/default
 Additionally, the [7+ Million Company Dataset](https://www.kaggle.com/datasets/peopledatalabssf/free-7-million-company-dataset) 
 from [People Data Labs](https://www.peopledatalabs.com/) is joined in order to include affected industries. 
 
+The backend now includes a cleaner analytical layer:
+- `sanction_edges`: normalized source-country -> target-country sanctions facts
+- `country_sanction_timeseries`: monthly/quarterly aggregation for heatmap and timeline use-cases
+- `country_spi_timeseries`: monthly SPI-ready country metrics (total, orgs, persons, growth, diversity)
+
 ## Features
 
 ### Sanctions By Country
@@ -27,7 +32,7 @@ from [People Data Labs](https://www.peopledatalabs.com/) is joined in order to i
   * https://www.kaggle.com/datasets/peopledatalabssf/free-7-million-company-dataset
 * create virtual env and install the requirements
   ```bash 
-    python3 -m venv .venv
+    python -m venv .venv
     source .venv/bin/activate
     pip3 install -r requirements.txt
   ```
@@ -47,29 +52,51 @@ from [People Data Labs](https://www.peopledatalabs.com/) is joined in order to i
     ```
   * Create schema
     ```bash
-    python3 ./util/DB.py sql/schema.sql
+    python ./util/DB.py sql/schema.sql
     ```
-  * Insert the OpenSanctions entries/ datasets and companies in the database (extract schemas & industries)
+  * Insert OpenSanctions entries, datasets, and companies in the database
     ```bash
-    # Insert the OpenSanctions entries & datasets in the database and extract the schemas
+    # Insert OpenSanctions datasets and entities
     python ./util/ParseOpenSanctionsData.py download_datasets ./data/index.json
     python ./util/ParseOpenSanctionsData.py write_entities ./data/entities.ftm.json
-    python ./util/ParseOpenSanctionsData.py extract_schemas ./data/schemas.txt
   
-    # Insert the CompanyData in the database and extract the industries
+    # Insert company data
     python ./util/ParserCompanySetData.py parser_company_set_data ./data/companies_sorted.csv
-    python ./util/ParserCompanySetData.py extract_industries ./data/industries.txt
     ```
-  * Insert the countries and perform the SQL transformations to enable the `Country-Sanctions->country` analysis.
-    Furthermore, it adds indexes to increase the dashboards performance. 
+  * Insert country metadata and build analytical tables/views
     ```bash
-    python3 ./util/DB.py ./sql/countries.sql
-    python3 ./util/DB.py ./sql/index_and_joins.sql
+    python ./util/DB.py ./sql/countries.sql
+    python ./util/DB.py ./sql/index_and_joins.sql
+    ```
+  * If your database already exists from an older version, run:
+    ```bash
+    python ./util/DB.py ./sql/migration_add_analytics.sql
+    python ./util/DB.py ./sql/index_and_joins.sql
     ```
 * Start the Dashboard:
   ```bash
-  python3 sanctions_dashboard dashboard.py
+  python ./sanctions_dashboard/dashboard.py
   ```
+
+## Export Analytical Outputs
+
+Use the export script to create reproducible filtered analytical outputs for heatmaps/SPI:
+
+```bash
+# Country sanctions timeseries (CSV)
+python ./util/ExportAnalytics.py timeseries --bucket month --format csv --output ./data/country_timeseries.csv
+
+# SPI timeseries for selected targets and schemas (JSON)
+python ./util/ExportAnalytics.py spi --bucket month --format json --output ./data/spi_timeseries.json --target-countries ru,ir --schemas Company,Organization,Person
+```
+
+Supported filters:
+- `--start-date`, `--end-date`
+- `--schemas`
+- `--industries`
+- `--datasets`
+- `--source-countries`
+- `--target-countries`
   
 ## Disclaimer
 This dashboard was created by TU Vienna student [Nicolas Bschor](https://github.com/HackerBschor) in collaboration 

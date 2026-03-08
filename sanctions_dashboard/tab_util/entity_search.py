@@ -7,27 +7,39 @@ def search_entity(schema: str, query: str, country: str, engine: Engine) -> pd.D
         return pd.DataFrame()
 
     country_join: str = ""
-    restriction: list[str] = ["LOWER(caption) LIKE concat('%%', LOWER(%(query)s) ,'%%')"]
+    restriction: list[str] = ["LOWER(e.caption) LIKE concat('%%', LOWER(%(query)s) ,'%%')"]
 
     if schema is not None and schema.strip() != "":
-        restriction.append("schema = %(schema)s")
+        restriction.append("e.schema = %(schema)s")
 
     if country is not None and country.strip() != "":
-        country_join = "JOIN (SELECT id FROM entities_countries WHERE source_country = %(country)s) ec USING (id)"
+        country_join = """JOIN (
+                            SELECT DISTINCT id FROM entities_countries
+                            WHERE source_country = %(country)s OR target_country = %(country)s
+                          ) ec_filter USING (id)"""
 
-    sql: str = f"""SELECT caption, country_descr, e.first_seen, e.last_seen, e.last_change, 
+    sql: str = f"""SELECT
+        caption,
+        STRING_AGG(DISTINCT country_descr, ', ') AS country_descr,
+        e.first_seen,
+        e.last_seen,
+        e.last_change,
         STRING_AGG(DISTINCT CONCAT(d.title, CASE WHEN flag IS NULL THEN '' ELSE CONCAT(' (', flag, ')') END), '\n') AS datasets
         FROM (
             SELECT DISTINCT id, caption, first_seen, last_seen, last_change, json_array_elements_text(datasets) AS name
-            FROM entities 
+            FROM entities e
             {country_join}
             WHERE {" AND ".join(restriction)}
         ) e
         LEFT JOIN (SELECT id, target_country FROM entities_countries) ec USING (id)
-        LEFT JOIN (SELECT alpha_2 AS target_country, description AS country_descr FROM countries) c USING (target_country)
+        LEFT JOIN (
+            SELECT alpha_2 AS target_country,
+                   COALESCE(NULLIF(name, ''), NULLIF(description, ''), alpha_2) AS country_descr
+            FROM countries
+        ) c USING (target_country)
         JOIN datasets d USING (name)
-        LEFT JOIN (SELECT alpha_2, flag FROM countries) c2 ON (d.publisher->>'country' = c2.alpha_2)
-        GROUP BY 1,2,3,4,5"""
+        LEFT JOIN (SELECT alpha_2, flag FROM countries) c2 ON d.publisher->>'country' = c2.alpha_2
+        GROUP BY 1,3,4,5"""
 
     df: pd.DataFrame = pd.read_sql(sql, params={"schema": schema, "query": query, "country": country}, con=engine)
 
