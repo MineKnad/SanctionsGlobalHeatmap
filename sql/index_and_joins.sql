@@ -6,6 +6,125 @@ JOIN companies c ON LOWER(e1.caption) = LOWER(c.name)
 WHERE e.id = e1.id
   AND e.schema = 'Company';
 
+/* Join Industries (fallback pass: normalized legal-name match with unique industry) */
+WITH company_norm AS (
+    SELECT
+        norm_name,
+        MIN(industry) AS industry
+    FROM (
+        SELECT
+            trim(regexp_replace(
+                regexp_replace(
+                    lower(name),
+                    '\m(incorporated|inc|limited|ltd|llc|plc|corp|corporation|company|co|gmbh|ag|sa|bv|nv|srl|spa|pte|oy|ab|ooo|jsc|pjsc|ao)\M\s*$',
+                    '',
+                    'g'
+                ),
+                '[^a-z0-9 ]',
+                ' ',
+                'g'
+            )) AS norm_name,
+            industry
+        FROM companies
+        WHERE name IS NOT NULL
+          AND name <> ''
+          AND industry IS NOT NULL
+          AND industry <> ''
+    ) x
+    WHERE norm_name IS NOT NULL
+      AND norm_name <> ''
+    GROUP BY norm_name
+    HAVING COUNT(DISTINCT industry) = 1
+),
+entity_norm AS (
+    SELECT
+        id,
+        trim(regexp_replace(
+            regexp_replace(
+                lower(caption),
+                '\m(incorporated|inc|limited|ltd|llc|plc|corp|corporation|company|co|gmbh|ag|sa|bv|nv|srl|spa|pte|oy|ab|ooo|jsc|pjsc|ao)\M\s*$',
+                '',
+                'g'
+            ),
+            '[^a-z0-9 ]',
+            ' ',
+            'g'
+        )) AS norm_name
+    FROM entities
+    WHERE schema IN ('Company', 'Organization', 'LegalEntity')
+)
+UPDATE entities e
+SET industry = cn.industry
+FROM entity_norm en
+JOIN company_norm cn ON cn.norm_name = en.norm_name
+WHERE e.id = en.id
+  AND (e.industry IS NULL OR e.industry = '');
+
+/* Join Industries (fallback pass: website-domain match with unique industry) */
+WITH company_domain AS (
+    SELECT
+        norm_domain,
+        MIN(industry) AS industry
+    FROM (
+        SELECT
+            lower(
+                split_part(
+                    split_part(
+                        regexp_replace(
+                            regexp_replace(domain, '^https?://', '', 'i'),
+                            '^www\.',
+                            '',
+                            'i'
+                        ),
+                        '/',
+                        1
+                    ),
+                    ':',
+                    1
+                )
+            ) AS norm_domain,
+            industry
+        FROM companies
+        WHERE domain IS NOT NULL
+          AND domain <> ''
+          AND industry IS NOT NULL
+          AND industry <> ''
+    ) x
+    WHERE norm_domain IS NOT NULL
+      AND norm_domain <> ''
+    GROUP BY norm_domain
+    HAVING COUNT(DISTINCT industry) = 1
+),
+entity_domain AS (
+    SELECT
+        e.id,
+        lower(
+            split_part(
+                split_part(
+                    regexp_replace(
+                        regexp_replace(w.website, '^https?://', '', 'i'),
+                        '^www\.',
+                        '',
+                        'i'
+                    ),
+                    '/',
+                    1
+                ),
+                ':',
+                1
+            )
+        ) AS norm_domain
+    FROM entities e
+    CROSS JOIN LATERAL json_array_elements_text(COALESCE(e.properties->'website', '[]'::json)) w(website)
+    WHERE e.schema IN ('Company', 'Organization', 'LegalEntity')
+)
+UPDATE entities e
+SET industry = cd.industry
+FROM entity_domain ed
+JOIN company_domain cd ON cd.norm_domain = ed.norm_domain
+WHERE e.id = ed.id
+  AND (e.industry IS NULL OR e.industry = '');
+
 /* Create clean sanctions fact edges */
 TRUNCATE TABLE sanction_edges;
 
