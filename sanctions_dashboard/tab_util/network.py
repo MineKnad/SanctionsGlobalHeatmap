@@ -107,13 +107,13 @@ def plot_network(graph: nx.Graph) -> go.Figure:
                             marker={
                                 "showscale": True, "colorscale": 'RdBu', "reversescale": True, "color": nodes_color,
                                 "size": 15, "colorbar": {"thickness": 10, "title": 'Number of sanctioned entities',
-                                                         "xanchor": 'left', "titleside": 'right'}, "line": {"width": 0}
+                                                         "xanchor": 'left'}, "line": {"width": 0}
                             })
 
     ticks: dict = {"showgrid": True, "zeroline": True, "showticklabels": False}
 
     fig: go.Figure = go.Figure(data=annotations + [node_trace], layout=go.Layout(
-                         titlefont={"size": 16}, showlegend=False, hovermode='closest',
+                         showlegend=False, hovermode='closest',
                          margin={"b": 20, "l": 5, "r": 5, "t": 40}, xaxis=ticks, yaxis=ticks))
     return fig
 
