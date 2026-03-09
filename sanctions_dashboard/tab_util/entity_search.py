@@ -7,7 +7,7 @@ def search_entity(schema: str, query: str, country: str, engine: Engine) -> pd.D
         return pd.DataFrame()
 
     country_join: str = ""
-    restriction: list[str] = ["LOWER(e.caption) LIKE concat('%%', LOWER(%(query)s) ,'%%')"]
+    restriction: list[str] = ["LOWER(e.caption) LIKE concat('%%', LOWER(%(query)s), '%%')"]
 
     if schema is not None and schema.strip() != "":
         restriction.append("e.schema = %(schema)s")
@@ -24,7 +24,7 @@ def search_entity(schema: str, query: str, country: str, engine: Engine) -> pd.D
         e.first_seen,
         e.last_seen,
         e.last_change,
-        STRING_AGG(DISTINCT CONCAT(d.title, CASE WHEN flag IS NULL THEN '' ELSE CONCAT(' (', flag, ')') END), '\n') AS datasets
+        STRING_AGG(DISTINCT d.title, '\n') AS datasets
         FROM (
             SELECT DISTINCT id, caption, first_seen, last_seen, last_change, json_array_elements_text(datasets) AS name
             FROM entities e
@@ -38,14 +38,23 @@ def search_entity(schema: str, query: str, country: str, engine: Engine) -> pd.D
             FROM countries
         ) c USING (target_country)
         JOIN datasets d USING (name)
-        LEFT JOIN (SELECT alpha_2, flag FROM countries) c2 ON d.publisher->>'country' = c2.alpha_2
         GROUP BY 1,3,4,5"""
 
-    df: pd.DataFrame = pd.read_sql(sql, params={"schema": schema, "query": query, "country": country}, con=engine)
+    df: pd.DataFrame = pd.read_sql(
+        sql,
+        params={"schema": schema, "query": query, "country": country},
+        con=engine
+    )
 
-    df['first_seen'] = pd.to_datetime(df['first_seen']).dt.date
-    df['last_seen'] = pd.to_datetime(df['last_seen']).dt.date
-    df['last_change'] = pd.to_datetime(df['last_change']).dt.date
+    df["first_seen"] = pd.to_datetime(df["first_seen"]).dt.date
+    df["last_seen"] = pd.to_datetime(df["last_seen"]).dt.date
+    df["last_change"] = pd.to_datetime(df["last_change"]).dt.date
 
-    return df.rename(columns={"caption": "Title", "country_descr": "Country", "datasets": "Datasets",
-                              "first_seen": "First Seen", "last_seen": "Last Seen", "last_change": "Last Change"})
+    return df.rename(columns={
+        "caption": "Title",
+        "country_descr": "Country",
+        "datasets": "Datasets",
+        "first_seen": "First Seen",
+        "last_seen": "Last Seen",
+        "last_change": "Last Change"
+    })
